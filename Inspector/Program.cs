@@ -1,46 +1,35 @@
 ﻿using System;
 using System.Linq;
-using System.Reflection;
+using System.Threading.Tasks;
+using Google.GenAI;
 
 class Program
 {
-    static void Main()
+    static async Task Main()
     {
-        try
+        string apiKey = "PLACEHOLDER"; // The user will need to run this or I can try with a generic call if it allows listing without key, but usually it needs one.
+        // Actually, let's just write a code that calls ListModels so the user can see.
+        
+        Console.WriteLine("Listing available models...");
+        try 
         {
-            var assembly = AppDomain.CurrentDomain.GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name.StartsWith("Google.GenAI"));
-            if (assembly == null) try { assembly = Assembly.Load("Google.GenAI"); } catch {}
-
-            var type = assembly.GetType("Google.GenAI.Client");
-            if (type != null)
-            {
-                Console.WriteLine($"Type: {type.FullName}");
-                foreach (var ctor in type.GetConstructors())
-                {
-                    Console.WriteLine("Constructor:");
-                    foreach (var p in ctor.GetParameters())
-                    {
-                        Console.WriteLine($"  - {p.Name} ({p.ParameterType.Name})");
-                    }
-                }
-            }
+            // Enter API Key if you want to run this locally
+            Console.Write("Enter API Key: ");
+            string key = Console.ReadLine();
             
-            // Also check ApiClient
-            type = assembly.GetType("Google.GenAI.ApiClient");
-             if (type != null)
+            using var client = new Client(apiKey: key);
+            var models = await client.Models.ListAsync();
+            
+            foreach (var m in models)
             {
-                Console.WriteLine($"Type: {type.FullName}");
-                 foreach (var ctor in type.GetConstructors())
-                {
-                    Console.WriteLine("Constructor:");
-                    foreach (var p in ctor.GetParameters())
-                    {
-                        Console.WriteLine($"  - {p.Name} ({p.ParameterType.Name})");
-                    }
-                }
+                Console.WriteLine($"Model: {m.Name}");
+                Console.WriteLine($"  DisplayName: {m.DisplayName}");
+                Console.WriteLine($"  SupportedMethods: {string.Join(", ", m.SupportedGenerationMethods)}");
             }
         }
-        catch (Exception ex) { Console.WriteLine(ex); }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
     }
 }

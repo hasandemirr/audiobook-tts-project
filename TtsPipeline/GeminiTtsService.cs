@@ -50,7 +50,7 @@ Pace: above average speed (not fast, but serious). Avoid long dramatic pauses.
                 using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
 
                 var responseStream = client.Models.GenerateContentStreamAsync(
-                    model: "gemini-2.0-flash-exp", 
+                    model: "gemini-2.0-flash", 
                     contents: new List<Content> { content },
                     config: config
                 );

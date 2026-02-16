@@ -14,5 +14,14 @@ TtsPipeline/Output/
 Inspector/bin/
 Inspector/obj/
 
+# Preserve folders
+!TtsPipeline/Input/.gitkeep
+!TtsPipeline/Output/.gitkeep
+!TtsPipeline/Temp/.gitkeep
+
+# User-specific input
+TtsPipeline/Input/*.txt
+!TtsPipeline/Input/ilyada_bolum_1.txt # Keep the sample fileg
+
 # Logs
 *.log
