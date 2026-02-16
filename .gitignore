@@ -14,9 +14,5 @@ TtsPipeline/Output/
 Inspector/bin/
 Inspector/obj/
 
-# User-specific input
-TtsPipeline/Input/*.txt
-!TtsPipeline/Input/ilyada_bolum_1.txt # Keep the sample file
-
 # Logs
 *.log
