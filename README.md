@@ -4,7 +4,9 @@ Bu proje, uzun metin dosyalarını (kitap bölümleri vb.) anlamlı parçalara b
 
 ## 🌟 Öne Çıkan Özellikler
 
-*   **Akıllı Parçalama:** Metni cümle ve paragraf bütünlüğünü bozmadan 3500 karakterlik güvenli parçalara bölür.
+*   **Model Seçimi:** Flash (hızlı) ve Pro (kalite) modelleri arasında geçiş yapabilme.
+*   **Dinamik Parça Sınırı:** Kullanıcının belirlediği karakter limitine göre metin parçalama.
+*   **Akıllı Metin Parçalama:** Uzun metinleri cümle bütünlüğünü bozmadan, paragrafları koruyarak güvenli parçalara ayırır (Varsayılan 800 karakter).
 *   **Gemini Flash 2.5 TTS:** Google'ın en yeni modelleri ile doğal ve akıcı seslendirme.
 *   **Dirençli Pipeline:** 
     *   **Retry:** Bağlantı hatalarında otomatik yeniden deneme (3 deneme).

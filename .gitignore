@@ -18,5 +18,8 @@ TtsPipeline/Temp/*
 !TtsPipeline/Output/.gitkeep
 !TtsPipeline/Temp/.gitkeep
 
+# User-specific configuration (Sensitive)
+TtsPipeline/config.json
+
 # Logs
 *.log

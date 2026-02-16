@@ -7,7 +7,7 @@ namespace TtsPipeline
 {
     public static class TextChunker
     {
-        public static List<string> SplitTextIntoSafeChunks(string text, int maxCharLimit = 3500)
+        public static List<string> SplitTextIntoSafeChunks(string text, int maxCharLimit = 800)
         {
             var resultChunks = new List<string>();
 
@@ -113,7 +113,7 @@ namespace TtsPipeline
                     // çünkü kelime bölmek "asla" denmiş ama cümle sınırı da verilmiş.
                     // Güvenli tarafta kalmak için eğer cümle maxCharLimit'ten büyükse, olduğu gibi ekleyelim 
                     // (veya daha gelişmiş kelime bölme eklenebilir ama istenmedi).
-                    if (sentence.Length > maxCharLimit)
+                    if (currentSubChunk.Length + sentence.Length > maxCharLimit)
                     {
                          // Cümle tek başına bile sığmıyor, yapacak bir şey yok, tek parça ekle.
                         chunks.Add(sentence);

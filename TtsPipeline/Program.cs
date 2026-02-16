@@ -1,18 +1,99 @@
 ﻿using TtsPipeline;
 using System.IO;
+using System.Text.Json;
 
 Console.WriteLine("Sesli Kitap Pipeline Başlatılıyor...");
 
-// API Key İste
-Console.Write("Lütfen Google API Key giriniz: ");
-string? apiKey = Console.ReadLine();
+// --- KONFİGÜRASYON SİSTEMİ ---
+string configPath = Path.Combine(Directory.GetCurrentDirectory(), "config.json");
+AppConfig config = new AppConfig();
+
+if (File.Exists(configPath))
+{
+    try
+    {
+        string json = File.ReadAllText(configPath);
+        config = JsonSerializer.Deserialize<AppConfig>(json) ?? new AppConfig();
+
+        Console.WriteLine("\n[SİSTEM] Kayıtlı ön ayarlar bulundu:");
+        string maskedKey = string.IsNullOrWhiteSpace(config.ApiKey) 
+            ? "YOK" 
+            : new string('*', Math.Max(0, config.ApiKey.Length - 4)) + config.ApiKey[^4..];
+        
+        Console.WriteLine($"- API Key: {maskedKey}");
+        Console.WriteLine($"- Model: {config.ModelName}");
+        Console.WriteLine($"- Karakter Limiti: {config.MaxCharLimit}");
+        Console.WriteLine($"- Yönetmen Talimatı: {(string.IsNullOrWhiteSpace(config.DirectorPrompt) ? "YOK" : config.DirectorPrompt)}");
+
+        Console.Write("\n[SİSTEM] Bu ayarlar kullanılsın mı? (E/H) [Varsayılan: E]: ");
+        string? useConfig = Console.ReadLine();
+
+        if (useConfig?.Trim().ToUpper() == "H")
+        {
+            config = RunSetupWizard();
+            File.WriteAllText(configPath, JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true }));
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[UYARI] Konfigürasyon okunurken hata oluştu, sihirbaz başlatılıyor: {ex.Message}");
+        config = RunSetupWizard();
+        File.WriteAllText(configPath, JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true }));
+    }
+}
+else
+{
+    config = RunSetupWizard();
+    File.WriteAllText(configPath, JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true }));
+}
+
+// Kolay erişim için değişkenleri ayarla
+string apiKey = config.ApiKey;
+string modelName = config.ModelName;
+int maxCharLimit = config.MaxCharLimit;
+string directorPrompt = config.DirectorPrompt;
 
 if (string.IsNullOrWhiteSpace(apiKey))
 {
-    Console.WriteLine("API Key girilmedi. İşlem iptal edildi.");
+    Console.WriteLine("[HATA] API Key bulunamadı. Lütfen config.json dosyasını kontrol edin veya uygulamayı yeniden başlatıp yeni anahtar girin.");
     return;
 }
 
+// --- KURULUM SİHİRBAZI ---
+static AppConfig RunSetupWizard()
+{
+    AppConfig newConfig = new AppConfig();
+
+    Console.WriteLine("\n=== YENİ KONFİGÜRASYON KURULUMU ===");
+    
+    Console.Write("Lütfen Google API Key giriniz: ");
+    newConfig.ApiKey = Console.ReadLine() ?? "";
+
+    Console.WriteLine("\nLütfen kullanılacak Gemini modelini seçin:");
+    Console.WriteLine("[1] gemini-2.5-flash-preview-tts (Hızlı & Ekonomik)");
+    Console.WriteLine("[2] gemini-2.5-pro-preview-tts (Yüksek Kalite)");
+    Console.WriteLine("[3] Diğer (Manuel Giriş)");
+    Console.Write("Seçiminiz (1-3): ");
+    string? choice = Console.ReadLine();
+    
+    if (choice == "2") newConfig.ModelName = "gemini-2.5-pro-preview-tts";
+    else if (choice == "3")
+    {
+        Console.Write("Lütfen model adını tam olarak yazın: ");
+        newConfig.ModelName = Console.ReadLine() ?? newConfig.ModelName;
+    }
+
+    Console.Write("\nLütfen parça başına limit girin (Varsayılan: 800): ");
+    string? limitInput = Console.ReadLine();
+    if (int.TryParse(limitInput, out int limit)) newConfig.MaxCharLimit = limit;
+    else newConfig.MaxCharLimit = 800;
+
+    Console.Write("\nLütfen yönetmen talimatını girin (Boş bırakmak için Enter'a basın): ");
+    newConfig.DirectorPrompt = Console.ReadLine() ?? "";
+
+    Console.WriteLine("[TAMAM] Ayarlar kaydedildi.");
+    return newConfig;
+}
 // Input klasörü yolu
 string inputDir = Path.Combine(Directory.GetCurrentDirectory(), "Input");
 string tempDir = Path.Combine(Directory.GetCurrentDirectory(), "Temp");
@@ -67,8 +148,8 @@ try
     // Metni oku
     string text = await File.ReadAllTextAsync(filePath);
 
-    // Parçala
-    var chunks = TextChunker.SplitTextIntoSafeChunks(text);
+    // Parçala (Kullanıcı limiti ile)
+    var chunks = TextChunker.SplitTextIntoSafeChunks(text, maxCharLimit);
     Console.WriteLine($"[BİLGİ] '{Path.GetFileName(filePath)}' dosyası okundu ve {chunks.Count} parçaya bölündü.");
 
     // Gerçek Servisi Başlat
@@ -79,19 +160,10 @@ try
     {
         string chunkText = chunks[i];
         
-        // Dosya adı formatı: bolum_01_part_001.wav (WAV veya PCM dönebilir, genelde WAV container olmayabilir ama RAW ses verisi. 
-        // SDK'nın döndürdüğü veri formatı Base64 encoded audio bytes. 
-        // Genellikle WAV header içermeyebilir, ham PCM olabilir veya WAV olabilir. 
-        // Şimdilik .wav uzantısı kullanalım, oynatıcılar bazen header olmasa da açabilir veya format bellidir.
-        // Google GenAI audio çıkışı genelde WAV formatındadır.)
-        
         string baseFileName = fileNameWithoutExt; // Defined baseFileName
         string fileName = $"{baseFileName}_part_{i + 1:D3}.wav";
         string outputPath = Path.Combine(tempDir, fileName);
         
-        // Prompt loglama (Opsiyonel olarak burada da tutabiliriz ama istenmedi, 
-        // ancak debug için iyi olabilir. Şimdilik sadece ses dosyası.)
-
         // [GÜNCELLEME] Dosya Kontrolü (Resume/Idempotency)
         if (File.Exists(outputPath) && new FileInfo(outputPath).Length > 0)
         {
@@ -107,7 +179,7 @@ try
         {
             Console.Write($"[API İŞLEMİ] Parça {i + 1}/{chunks.Count} gönderiliyor (Deneme {attempt})...");
             
-            isSuccess = await geminiService.GenerateAndSaveAudioAsync(chunks[i], outputPath, apiKey);
+            isSuccess = await geminiService.GenerateAndSaveAudioAsync(chunks[i], outputPath, apiKey, modelName, directorPrompt);
 
             if (isSuccess)
             {

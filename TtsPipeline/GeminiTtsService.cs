@@ -9,12 +9,7 @@ namespace TtsPipeline
 {
     public class GeminiTtsService
     {
-        private readonly string _directorPrompt = @"Voice Profile: Adult male, deep baritone, authoritative and legendary.
-Constraints: No background echo or reverb. No audible breath sounds. High clarity, studio environment.
-Pace: above average speed (not fast, but serious). Avoid long dramatic pauses.
-{0}";
-
-        public async Task<bool> GenerateAndSaveAudioAsync(string chunkText, string outputPath, string apiKey)
+        public async Task<bool> GenerateAndSaveAudioAsync(string chunkText, string outputPath, string apiKey, string modelName, string directorPrompt)
         {
             try
             {
@@ -22,14 +17,16 @@ Pace: above average speed (not fast, but serious). Avoid long dramatic pauses.
                 var httpOptions = new HttpOptions { Timeout = 300000 };
                 using var client = new Client(apiKey: apiKey, httpOptions: httpOptions);
 
-                // Prompt hazırla
-                string fullPrompt = string.Format(_directorPrompt, chunkText);
+                // Prompt hazırlığı: Eğer directorPrompt varsa ekle, yoksa sadece metni gönder.
+                string finalInputText = string.IsNullOrWhiteSpace(directorPrompt) 
+                    ? chunkText 
+                    : $"{directorPrompt}\n\n{chunkText}";
 
                 // Content nesnesini manuel oluştur (List initialization)
                 var content = new Content
                 {
                     Role = "user",
-                    Parts = new List<Part> { new Part { Text = fullPrompt } }
+                    Parts = new List<Part> { new Part { Text = finalInputText } }
                 };
 
                 // Config ayarla
@@ -53,7 +50,7 @@ Pace: above average speed (not fast, but serious). Avoid long dramatic pauses.
                 using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
 
                 var responseStream = client.Models.GenerateContentStreamAsync(
-                    model: "gemini-2.5-flash-preview-tts", 
+                    model: modelName, 
                     contents: new List<Content> { content },
                     config: config
                 );
