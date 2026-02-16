@@ -28,7 +28,7 @@ if (!Directory.Exists(tempDir))
     Directory.CreateDirectory(tempDir);
 }
 
-// İlk .txt dosyasını bul
+// Dosyaları listele ve seçtir
 var files = Directory.GetFiles(inputDir, "*.txt");
 if (files.Length == 0)
 {
@@ -36,7 +36,30 @@ if (files.Length == 0)
     return;
 }
 
-string filePath = files[0];
+string filePath;
+if (files.Length > 1)
+{
+    Console.WriteLine("\n[İşlem] Hangi dosyayı işlemek istersiniz?");
+    for (int j = 0; j < files.Length; j++)
+    {
+        Console.WriteLine($"{j + 1}. {Path.GetFileName(files[j])}");
+    }
+    Console.Write("Seçiminiz (1-N): ");
+    if (int.TryParse(Console.ReadLine(), out int choice) && choice >= 1 && choice <= files.Length)
+    {
+        filePath = files[choice - 1];
+    }
+    else
+    {
+        Console.WriteLine("Geçersiz seçim. İlk dosya seçildi.");
+        filePath = files[0];
+    }
+}
+else
+{
+    filePath = files[0];
+}
+
 string fileNameWithoutExt = Path.GetFileNameWithoutExtension(filePath);
 
 try
@@ -119,7 +142,7 @@ try
     try
     {
         Console.WriteLine($"[API İŞLEMİ] Ses dosyaları birleştiriliyor...");
-        await mergerService.MergeWavFilesAsync(tempDir, finalMp3Path);
+        await mergerService.MergeWavFilesAsync(tempDir, finalMp3Path, fileNameWithoutExt);
         Console.WriteLine($"[TAMAMLANDI] Dosya oluşturuldu: {Path.GetFileName(finalMp3Path)}");
 
         // Kapak resmi bul (.jpg veya .png)

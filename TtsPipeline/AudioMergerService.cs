@@ -9,68 +9,84 @@ namespace TtsPipeline
 {
     public class AudioMergerService
     {
-        public async Task MergeWavFilesAsync(string tempDir, string outputFile)
+        public async Task MergeWavFilesAsync(string tempDir, string outputFile, string filePrefix)
         {
-            // .wav dosyalarını isme göre sırala (part_001, part_002...)
-            var wavFiles = Directory.GetFiles(tempDir, "*.wav")
+            // Belirtilen öneke sahip .wav dosyalarını isme göre sırala
+            var wavFiles = Directory.GetFiles(tempDir, $"{filePrefix}_part_*.wav")
                                     .OrderBy(f => f)
                                     .ToList();
 
             if (wavFiles.Count == 0)
             {
-                throw new FileNotFoundException("Birleştirilecek .wav dosyası bulunamadı.");
+                throw new FileNotFoundException($"{filePrefix} ile başlayan birleştirilecek .wav dosyası bulunamadı.");
             }
 
-            string listFilePath = Path.Combine(tempDir, "file_list.txt");
-            
-            // FFmpeg concat listesi oluştur
-            using (var sw = new StreamWriter(listFilePath))
-            {
-                foreach (var file in wavFiles)
-                {
-                    // FFmpeg concat için 'file' formatı ve tek tırnak/kaçış karakterleri
-                    sw.WriteLine($"file '{file.Replace("'", "'\\''")}'");
-                }
-            }
-
-            // FFmpeg Komutu:
-            // -f concat: Dosyaları birleştir
-            // -safe 0: Yerel dosya yollarına izin ver
-            // -i: Input listesi
-            // -c:a libmp3lame: MP3 formatına dönüştür
-            // -b:a 128k: Bit hızı
-            // -ac 1: Mono (genelde sesli kitap için yeterli ve yer tasarrufu sağlar)
-            string arguments = $"-f concat -safe 0 -i \"{listFilePath}\" -c:a libmp3lame -b:a 128k -ac 1 \"{outputFile}\" -y";
-
+            var filterInputs = new System.Text.StringBuilder();
             var processStartInfo = new ProcessStartInfo
             {
-                FileName = "ffmpeg",
-                Arguments = arguments,
+                FileName = @"C:\ffmpeg\bin\ffmpeg.exe",
+                WorkingDirectory = tempDir,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
 
+            // .NET 8 ile gelen ArgumentList dize kaçırma (escaping) sorunlarını önler.
+            for (int i = 0; i < wavFiles.Count; i++)
+            {
+                string fileName = Path.GetFileName(wavFiles[i]);
+                processStartInfo.ArgumentList.Add("-f");
+                processStartInfo.ArgumentList.Add("s16le");
+                processStartInfo.ArgumentList.Add("-ar");
+                processStartInfo.ArgumentList.Add("24000");
+                processStartInfo.ArgumentList.Add("-ac");
+                processStartInfo.ArgumentList.Add("1");
+                processStartInfo.ArgumentList.Add("-i");
+                processStartInfo.ArgumentList.Add(fileName);
+                
+                filterInputs.Append($"[{i}:a]");
+            }
+
+            filterInputs.Append($"concat=n={wavFiles.Count}:v=0:a=1[out]");
+
+            processStartInfo.ArgumentList.Add("-filter_complex");
+            processStartInfo.ArgumentList.Add(filterInputs.ToString());
+            processStartInfo.ArgumentList.Add("-map");
+            processStartInfo.ArgumentList.Add("[out]");
+            processStartInfo.ArgumentList.Add("-c:a");
+            processStartInfo.ArgumentList.Add("libmp3lame");
+            processStartInfo.ArgumentList.Add("-b:a");
+            processStartInfo.ArgumentList.Add("128k");
+            processStartInfo.ArgumentList.Add("-ac");
+            processStartInfo.ArgumentList.Add("1");
+            processStartInfo.ArgumentList.Add("-y");
+            processStartInfo.ArgumentList.Add(outputFile);
+
+            Console.WriteLine($"[DEBUG] FFmpeg {(wavFiles.Count)} parça için başlatılıyor...");
+            
             using var process = new Process { StartInfo = processStartInfo };
             
-            bool started = process.Start();
-            if (!started)
+            try
             {
-                throw new Exception("FFmpeg başlatılamadı. Sistemde yüklü olduğundan emin olun.");
+                process.Start();
             }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                throw new Exception("FFmpeg ('ffmpeg.exe') sistemde bulunamadı. Lütfen yolu kontrol edin.");
+            }
+
+            // Deadlock'u önlemek için çıktıları paralel (asenkron) oku
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
 
             await process.WaitForExitAsync();
 
-            // Dosya listesini temizle
-            if (File.Exists(listFilePath))
-            {
-                File.Delete(listFilePath);
-            }
+            string error = await errorTask;
+            string output = await outputTask;
 
             if (process.ExitCode != 0)
             {
-                string error = await process.StandardError.ReadToEndAsync();
                 throw new Exception($"FFmpeg hatası (ExitCode: {process.ExitCode}): {error}");
             }
         }

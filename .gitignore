@@ -8,20 +8,15 @@
 *.userosscache
 *.sln.docstates
 
-# Project specific
-TtsPipeline/Temp/
-TtsPipeline/Output/
-Inspector/bin/
-Inspector/obj/
+# Ignore all contents of specific directories
+TtsPipeline/Input/*
+TtsPipeline/Output/*
+TtsPipeline/Temp/*
 
-# Preserve folders
+# Preserve directories with .gitkeep
 !TtsPipeline/Input/.gitkeep
 !TtsPipeline/Output/.gitkeep
 !TtsPipeline/Temp/.gitkeep
-
-# User-specific input
-TtsPipeline/Input/*.txt
-!TtsPipeline/Input/ilyada_bolum_1.txt # Keep the sample fileg
 
 # Logs
 *.log

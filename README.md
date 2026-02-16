@@ -1,62 +1,65 @@
-# TtsPipeline: Sesli Kitap Oluşturma Aracı
+# TtsPipeline: Akıllı Sesli Kitap Oluşturucu 🎧📚
 
-Bu proje, uzun metin dosyalarını (örneğin kitap bölümlerini) akıllıca parçalara bölen ve Google Gemini API kullanarak yüksek kaliteli ses dosyalarına (TTS) dönüştüren bir .NET 8 konsol uygulamasıdır.
+Bu proje, uzun metin dosyalarını (kitap bölümleri vb.) anlamlı parçalara bölen, Google Gemini API kullanarak yüksek kaliteli sese dönüştüren ve ardından bu parçaları tek bir MP3 dosyasında birleştiren profesyonel bir TTS (Text-to-Speech) pipeline uygulamasıdır.
 
-## Özellikler
+## 🌟 Öne Çıkan Özellikler
 
-*   **Akıllı Metin Parçalama:** Uzun metinleri cümle bütünlüğünü bozmadan, paragrafları koruyarak güvenli parçalara ayırır (maksimum 3500 karakter).
-*   **Google Gemini Entegrasyonu:** Google'ın gelişmiş üretken yapay zeka modellerini kullanarak doğal ve etkileyici bir seslendirme yapar.
-*   **Yönetmen Şablonu:** Seslendirme için "Efsanevi Anlatıcı" profili kullanır (derin bariton, otoriter, stüdyo kalitesi).
-*   **Otomatik Kayıt:** Oluşturulan ses dosyalarını sıralı bir şekilde (`part_001.wav`, `part_002.wav`...) kaydeder.
+*   **Akıllı Parçalama:** Metni cümle ve paragraf bütünlüğünü bozmadan 3500 karakterlik güvenli parçalara bölür.
+*   **Gemini Flash 2.5 TTS:** Google'ın en yeni modelleri ile doğal ve akıcı seslendirme.
+*   **Dirençli Pipeline:** 
+    *   **Retry:** Bağlantı hatalarında otomatik yeniden deneme (3 deneme).
+    *   **Resume:** Kaldığı yerden devam etme (mevcut dosyaları atlar).
+    *   **Timeout:** Uzun parçalar için 5 dakikalık zaman aşımı desteği.
+*   **Otomatik Birleştirme:** Parçaları FFmpeg kullanarak tek bir MP3 dosyasında birleştirir.
+*   **Metadata Gömme:** MP3 dosyasına tam metni (Lyrics) ve kapak resmini (ID3 tags) otomatik olarak ekler.
+*   **Dosya Seçim Menüsü:** Birden fazla giriş dosyası arasından seçim yapabilme.
 
-## Gereksinimler
+## 🛠️ Gereksinimler
 
-*   [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
-*   **[FFmpeg](https://ffmpeg.org/download.html)** (Ses dosyalarını birleştirmek için gereklidir. Sistem PATH'ine ekli olmalıdır.)
-*   Google API Key (Gemini API erişimi için - [Google AI Studio](https://aistudio.google.com/))
+1.  **[.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)** (Derleme ve çalıştırma için).
+2.  **[FFmpeg](https://ffmpeg.org/download.html)** (Ses birleştirme için kritik).
+    *   `ffmpeg.exe`'nin `C:\ffmpeg\bin\ffmpeg.exe` yolunda olması veya `AudioMergerService.cs` içindeki yolun güncellenmesi gerekir.
+3.  **Google API Key:** [Google AI Studio](https://aistudio.google.com/) üzerinden ücretsiz alabilirsiniz.
 
-## Kurulum ve Hazırlık
+## 🚀 Hızlı Başlangıç (GitHub Workflow)
 
-1.  **Projeyi Derleyin:**
-    Terminali açın ve proje dizinine gidin (`TtsPipeline` klasörü), ardından şu komutu çalıştırın:
-    ```powershell
-    dotnet build
-    ```
+### 1. Projeyi Klonlayın
+```powershell
+git clone https://github.com/hasandemirr/audiobook-tts-project.git
+cd audiobook-tts-project/TtsPipeline
+```
 
-2.  **Girdi Dosyası:**
-    Seslendirmek istediğiniz metin dosyasını (örneğin `kitap.txt`) projenin `Input` klasörüne kopyalayın.
-    *   **Not:** Program `Input` klasöründeki *ilk* `.txt` dosyasını otomatik olarak işleme alır.
+### 2. Bağımlılıkları Yükleyin ve Derleyin
+```powershell
+dotnet build
+```
 
-## Kullanım
+### 3. Klasör Yapısını Hazırlayın
+Proje dizininde şu klasörlerin olduğundan emin olun (yoksa uygulama oluşturacaktır):
+- `Input/`: Seslendirilecek `.txt` dosyalarını buraya atın. Kapak resmi için bir `.jpg` veya `.png` ekleyebilirsiniz.
+- `Output/`: Final MP3 buraya kaydedilir.
+- `Temp/`: Geçici ses parçaları burada tutulur (işlem sonunda temizlenir).
 
-Projeyi çalıştırmak için terminalde şu komutu girin:
-
+### 4. Uygulamayı Çalıştırın
 ```powershell
 dotnet run
 ```
 
-1.  Uygulama başladığında sizden **Google API Key** isteyecektir.
-2.  API Key'inizi yapıştırıp `Enter` tuşuna basın.
-3.  Uygulama metni parçalara bölecek ve her bir parça için API isteği gönderecektir.
-4.  İşlem durumu terminalde canlı olarak gösterilecektir (`[API İŞLEMİ] Parça 1/10 gönderiliyor...`).
+*   Uygulama başladığında **API Key** isteyecektir. Key'inizi yapıştırıp devam edin.
+*   `Input` klasöründeki dosyalar listelenecek, işlemek istediğinizi seçin.
 
-## Çıktılar
+## 📂 Proje Yapısı
 
-Oluşturulan ses dosyaları projenin `Temp` klasöründe saklanır.
+- `Program.cs`: Tüm süreci yöneten orkestrasyon katmanı.
+- `GeminiTtsService.cs`: Google SDK entegrasyonu ve ses üretimi.
+- `AudioMergerService.cs`: FFmpeg birleştirme ve TagLib# metadata işlemleri.
+- `TextChunker.cs`: Metni akıllı parçalara bölen yardımcı sınıf.
 
-Örnek dosya isimleri:
-*   `kitap_part_001.wav`
-*   `kitap_part_002.wav`
-*   ...
+## ⚠️ Dikkat Edilmesi Gerekenler
 
-## Sorun Giderme
+- **Maliyet:** Ücretsiz katman (Free Tier) kullanıyorsanız rate limitlere dikkat edin.
+- **FFmpeg Yolu:** Eğer FFmpeg farklı bir klasördeyse `AudioMergerService.cs` içindeki `FileName = @"C:\ffmpeg\bin\ffmpeg.exe"` satırını kendi yolunuza göre güncelleyin.
+- **Dil:** Uygulama şu an Türkçe metinler için optimize edilmiştir ancak model çok dilli destek sunmaktadır.
 
-*   **API Hatası:** Eğer API hatası alırsanız, internet bağlantınızı ve API anahtarınızın kotasını/yetkisini kontrol edin.
-*   **Dosya Bulunamadı:** `Input` klasörünün dolu olduğundan emin olun.
-
-## Proje Yapısı
-
-*   `Program.cs`: Ana uygulama akışı.
-*   `TextChunker.cs`: Metin parçalama mantığı.
-*   `GeminiTtsService.cs`: Google API ile iletişim kuran servis.
-*   `MockGeminiTtsService.cs`: Test amaçlı sahte servis (artık kullanılmıyor ama kodda mevcut).
+---
+*Geliştirici: **hasandemirr***
