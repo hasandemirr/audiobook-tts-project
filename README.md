@@ -12,6 +12,7 @@ Bu proje, uzun metin dosyalarını (örneğin kitap bölümlerini) akıllıca pa
 ## Gereksinimler
 
 *   [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+*   **[FFmpeg](https://ffmpeg.org/download.html)** (Ses dosyalarını birleştirmek için gereklidir. Sistem PATH'ine ekli olmalıdır.)
 *   Google API Key (Gemini API erişimi için - [Google AI Studio](https://aistudio.google.com/))
 
 ## Kurulum ve Hazırlık

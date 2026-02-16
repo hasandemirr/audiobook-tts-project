@@ -62,27 +62,90 @@ try
         // Şimdilik .wav uzantısı kullanalım, oynatıcılar bazen header olmasa da açabilir veya format bellidir.
         // Google GenAI audio çıkışı genelde WAV formatındadır.)
         
-        string outputFileName = $"{fileNameWithoutExt}_part_{(i + 1):000}.wav";
-        string outputPath = Path.Combine(tempDir, outputFileName);
+        string baseFileName = fileNameWithoutExt; // Defined baseFileName
+        string fileName = $"{baseFileName}_part_{i + 1:D3}.wav";
+        string outputPath = Path.Combine(tempDir, fileName);
         
         // Prompt loglama (Opsiyonel olarak burada da tutabiliriz ama istenmedi, 
         // ancak debug için iyi olabilir. Şimdilik sadece ses dosyası.)
 
-        Console.Write($"[API İŞLEMİ] Parça {i + 1}/{chunks.Count} gönderiliyor... ");
-
-        bool success = await geminiService.GenerateAndSaveAudioAsync(chunkText, outputPath, apiKey);
-
-        if (success)
+        // [GÜNCELLEME] Dosya Kontrolü (Resume/Idempotency)
+        if (File.Exists(outputPath) && new FileInfo(outputPath).Length > 0)
         {
-            Console.WriteLine($"Tamamlandı. -> {outputFileName}");
+            Console.WriteLine($"[BİLGİ] Dosya zaten mevcut, atlanıyor: {fileName}");
+            continue;
         }
-        else
+
+        // [GÜNCELLEME] Timeout ve Retry (Direnç Mekanizması)
+        int maxRetries = 3;
+        bool isSuccess = false;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            Console.WriteLine("HATA!");
+            Console.Write($"[API İŞLEMİ] Parça {i + 1}/{chunks.Count} gönderiliyor (Deneme {attempt})...");
+            
+            isSuccess = await geminiService.GenerateAndSaveAudioAsync(chunks[i], outputPath, apiKey);
+
+            if (isSuccess)
+            {
+                Console.WriteLine($" Tamamlandı. -> {fileName}");
+                break;
+            }
+            else
+            {
+                Console.WriteLine(" HATA!");
+                if (attempt < maxRetries)
+                {
+                    Console.WriteLine($"[BİLGİ] 5 saniye içinde tekrar denenecek...");
+                    await Task.Delay(5000);
+                }
+                else
+                {
+                    Console.WriteLine($"[KRİTİK] {maxRetries} deneme başarısız oldu. Bu parça atlanıyor.");
+                }
+            }
         }
     }
 
-    Console.WriteLine("\nTüm işlemler tamamlandı.");
+    Console.WriteLine("\n[BİLGİ] Tüm parçalar başarıyla indirildi/doğrulandı.");
+
+    // --- FİNAL AŞAMASI: BİRLEŞTİRME VE METADATA ---
+    string outputDir = Path.Combine(Directory.GetCurrentDirectory(), "Output");
+    if (!Directory.Exists(outputDir)) Directory.CreateDirectory(outputDir);
+
+    string finalMp3Path = Path.Combine(outputDir, $"{fileNameWithoutExt}_Tam.mp3");
+    var mergerService = new AudioMergerService();
+
+    try
+    {
+        Console.WriteLine($"[API İŞLEMİ] Ses dosyaları birleştiriliyor...");
+        await mergerService.MergeWavFilesAsync(tempDir, finalMp3Path);
+        Console.WriteLine($"[TAMAMLANDI] Dosya oluşturuldu: {Path.GetFileName(finalMp3Path)}");
+
+        // Kapak resmi bul (.jpg veya .png)
+        string? coverPath = Directory.GetFiles(inputDir)
+                                    .FirstOrDefault(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || 
+                                                         f.EndsWith(".png", StringComparison.OrdinalIgnoreCase));
+
+        Console.WriteLine("[API İŞLEMİ] Metadata (Lyrics & Cover) gömülüyor...");
+        mergerService.EmbedMetadata(finalMp3Path, text, coverPath ?? "");
+
+        // Geçici dosyaları temizle
+        Console.WriteLine("[TEMİZLİK] Geçici .wav dosyaları silinicek...");
+        foreach (var wavFile in Directory.GetFiles(tempDir, "*.wav"))
+        {
+            File.Delete(wavFile);
+        }
+
+        Console.WriteLine("\n--------------------------------------------------");
+        Console.WriteLine("🏆 SESLİ KİTAP BAŞARIYLA OLUŞTURULDU!");
+        Console.WriteLine($"Konum: {finalMp3Path}");
+        Console.WriteLine("--------------------------------------------------");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[HATA] Birleştirme aşamasında bir sorun oluştu: {ex.Message}");
+    }
 }
 catch (Exception ex)
 {

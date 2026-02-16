@@ -18,8 +18,9 @@ Pace: above average speed (not fast, but serious). Avoid long dramatic pauses.
         {
             try
             {
-                // Client oluştur
-                using var client = new Client(apiKey: apiKey);
+                // Client oluştur (Timeout süresini 5 dakikaya çıkar: 300,000 ms)
+                var httpOptions = new HttpOptions { Timeout = 300000 };
+                using var client = new Client(apiKey: apiKey, httpOptions: httpOptions);
 
                 // Prompt hazırla
                 string fullPrompt = string.Format(_directorPrompt, chunkText);
@@ -27,12 +28,14 @@ Pace: above average speed (not fast, but serious). Avoid long dramatic pauses.
                 // Content nesnesini manuel oluştur (List initialization)
                 var content = new Content
                 {
+                    Role = "user",
                     Parts = new List<Part> { new Part { Text = fullPrompt } }
                 };
 
                 // Config ayarla
                 var config = new GenerateContentConfig
                 {
+                    Temperature = 1,
                     ResponseModalities = new List<string> { "audio" },
                     SpeechConfig = new SpeechConfig
                     {
@@ -50,7 +53,7 @@ Pace: above average speed (not fast, but serious). Avoid long dramatic pauses.
                 using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
 
                 var responseStream = client.Models.GenerateContentStreamAsync(
-                    model: "gemini-2.0-flash", 
+                    model: "gemini-2.5-flash-preview-tts", 
                     contents: new List<Content> { content },
                     config: config
                 );
