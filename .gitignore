@@ -1,0 +1,22 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Project specific
+TtsPipeline/Temp/
+TtsPipeline/Output/
+Inspector/bin/
+Inspector/obj/
+
+# User-specific input
+TtsPipeline/Input/*.txt
+!TtsPipeline/Input/ilyada_bolum_1.txt # Keep the sample file
+
+# Logs
+*.log
